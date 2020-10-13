@@ -1,0 +1,52 @@
+* org-z
+
+#+begin_quote
+Lightweight, Org-mode flavored zettelkasten links.
+#+end_quote
+
+org-z is a global minor mode that enables a lightweight Org mode style zettelkasten. Unlike a traditional zettelkasten, org-z focuses on headings rather than pages, allowing you to make hyperlinks within a single org-mode doc.
+
+By treating headings, rather than pages, as first-class, we can use standard functions that ship with org like ~org-store-link~ and packages like org-ql and org-journal-mode to maximum effect.
+
+org-z has the following features:
+
++ Insert links to org headings with interactive search (~C-c-.~ by default)
++ Links are managed automatically using ~org-store-link~ and org-ids
++ Links to new / missing targets auto-create targets in a configurable file location (~new.org~ by default). Creation of the new heading is customizable using a capture template.
+
+** Installation
+
+Install with straight.el:
+
+#+begin_src emacs-lisp
+  (use-package org-z
+    :straight (org-z :type git :host github :repo "landakram/org-z")
+    :config
+    (org-z-mode 1))
+#+end_src
+
+** A lightweight zettelkasten
+
+I like to combine org-z with a daily journal, implemented as a ~file+datetree~ capture template, and org-sidebar backlinks.
+
+#+begin_src emacs-lisp
+  (setq org-capture-templates
+        '(;; ...
+          ("j" "Journal entry" entry (file+datetree "~/org/journal.org")
+           "* %?\n" :unnarrowed t)))
+
+  (use-package org-sidebar
+    :ensure t
+    :after (general)
+    :config
+    (leader-def :infix "o"
+      "b" 'org-sidebar-backlinks))
+#+end_src
+
+As I go about my day, I make journal entries that link to various headings in my collection of org files. I periodically open the backlinks panel to investigate connections.
+
+Every once in a while, I review my journal entries and ~org-refile~ headings or simply re-organize journal entry knowledge into "longer-term storage" (~reference.org~ or ~projects.org~).
+
+** Motivation
+
+I was inspired by [[https://github.com/org-roam/org-roam][org-roam]], but wanted something that fit my existing org workflow, which is a handful of files with deep headings rather than a file per topic.
