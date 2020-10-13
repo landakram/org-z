@@ -4,14 +4,14 @@
 Lightweight, Org-mode flavored zettelkasten links.
 #+end_quote
 
-org-z is a global minor mode that enables a lightweight Org mode style zettelkasten. Unlike a traditional zettelkasten, org-z focuses on headings rather than pages, allowing you to make hyperlinks within a single org-mode doc.
+org-z is an Emacs global minor mode that enables a lightweight, Org mode style zettelkasten. Unlike a traditional zettelkasten, org-z focuses on headings rather than pages, allowing you to make hyperlinks within a single Org mode document.
 
-By treating headings, rather than pages, as first-class, we can use standard functions that ship with org like ~org-store-link~ and packages like org-ql and org-journal-mode to maximum effect.
+By treating headings, rather than pages, as first-class, we can use standard functions that ship with org like [[https://orgmode.org/manual/Handling-Links.html][org-store-link]] and packages like [[https://github.com/alphapapa/org-sidebar][org-sidebar]] to maximum effect.
 
 org-z has the following features:
 
 + Insert links to org headings with interactive search (~C-c-.~ by default)
-+ Links are managed automatically using ~org-store-link~ and org-ids
++ Links are managed automatically using [[https://orgmode.org/manual/Handling-Links.html][org-store-link]] and org-ids
 + Links to new / missing targets auto-create targets in a configurable file location (~new.org~ by default). Creation of the new heading is customizable using a capture template.
 
 ** Installation
@@ -27,7 +27,7 @@ Install with straight.el:
 
 ** A lightweight zettelkasten
 
-I like to combine org-z with a daily journal, implemented as a ~file+datetree~ capture template, and org-sidebar backlinks.
+I combine org-z with a daily journal, implemented as a ~file+datetree~ capture template, and [[https://github.com/alphapapa/org-sidebar][org-sidebar]] backlinks.
 
 #+begin_src emacs-lisp
   (setq org-capture-templates
@@ -43,7 +43,7 @@ I like to combine org-z with a daily journal, implemented as a ~file+datetree~ c
       "b" 'org-sidebar-backlinks))
 #+end_src
 
-As I go about my day, I make journal entries that link to various headings in my collection of org files. I periodically open the backlinks panel to investigate connections.
+As I go about my day, I make journal entries that link to various headings in my collection of org files. I make these links by invoking ~org-store-link~ as I write my journal entry. I periodically open the backlinks sidebar to investigate connections.
 
 Every once in a while, I review my journal entries and ~org-refile~ headings or simply re-organize journal entry knowledge into "longer-term storage" (~reference.org~ or ~projects.org~).
 
