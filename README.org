@@ -43,7 +43,7 @@ I combine org-z with a daily journal, implemented as a ~file+datetree~ capture t
       "b" 'org-sidebar-backlinks))
 #+end_src
 
-As I go about my day, I make journal entries that link to various headings in my collection of org files. I make these links by invoking ~org-store-link~ as I write my journal entry. I periodically open the backlinks sidebar to investigate connections.
+As I go about my day, I make journal entries that link to various headings in my collection of org files. I make these links by invoking ~org-z-insert-link~ as I write my journal entry. I periodically open the backlinks sidebar to investigate connections.
 
 Every once in a while, I review my journal entries and ~org-refile~ headings or simply re-organize journal entry knowledge into "longer-term storage" (~reference.org~ or ~projects.org~).
 
