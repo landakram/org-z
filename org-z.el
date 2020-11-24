@@ -6,7 +6,7 @@
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
 ;; Package-Version: 0.0.1
-;; Package-Requires: ((emacs "26.1") (org "9.3") (helm-org-rifle "1.7.1") (helm-rg "0.1"))
+;; Package-Requires: ((emacs "26.1") (org "9.3") (helm-org-rifle "1.7.1") (helm-rg "0.1") (dash "2.12") (f "0.18.1") (s "1.10.0"))
 ;; Keywords: (outlines)
 
 ;;; Commentary:
@@ -20,12 +20,20 @@
 (require 'org-capture)
 (require 'helm-org-rifle)
 (require 'helm-rg)
+(require 'dash)
+(require 'f)
+(require 's)
 
 (defgroup org-z nil
   "org-z customizable variables."
   :group 'org)
 
-(defcustom org-z-new-headings-file (concat org-directory "/" "new.org")
+(defcustom org-z-directories (list org-directory)
+  "Directories in which org-z will look for org files."
+  :type 'list
+  :group 'org-z)
+
+(defcustom org-z-new-headings-file (f-join org-directory "new.org")
   "File in which to write new headings when inserting a link to a heading that does not already exist."
   :type 'file
   :group 'org-z)
@@ -38,7 +46,10 @@
        :immediate-finish t))))
 
 (defcustom org-z-capture-templates #'org-z-capture--templates
-  "The capture templates used by org-z to create a heading when inserting a link to a heading that doesn't exist."
+  "The capture templates used by org-z to create a heading when inserting a link to a
+heading that doesn't exist. This is a function which returns a list of capture templates
+using the same syntax as `org-capture-templates'. The function accepts a single string
+argument, which is the missing heading."
   :type 'function
   :group 'org-z)
 
@@ -62,9 +73,11 @@
         (point (org-capture-get :insertion-point)))
     (with-current-buffer buf
       (save-excursion
-        (goto-char point)
-        (call-interactively 'org-store-link)))
-    (remove-hook 'org-capture-before-finalize-hook #'org-z-capture--before-finalize-hook)))
+        (save-restriction
+          (widen)
+          (goto-char point)
+          (call-interactively 'org-store-link)))))
+  (remove-hook 'org-capture-before-finalize-hook #'org-z-capture--before-finalize-hook))
 
 (defun org-z-capture--after-finalize-hook ()
   "After org-z-capture, insert a link."
@@ -129,14 +142,13 @@
 
   (let* ((helm-candidate-separator " ")
          (helm-cleanup-hook (org-z--org-rifle-cleanup-hook))
-         (org-rifle-sources (org-z--org-rifle-files-source (org-z--list-org-files (list org-directory)))))
+         (org-rifle-sources (org-z--org-rifle-files-source (org-z--list-org-files org-z-directories))))
     (add-to-list 'helm-org-rifle-actions '("Insert link" . org-z-helm-org-rifle--insert-link))
     (helm
      :input (thing-at-point 'symbol 'no-properties)
      :sources (append org-rifle-sources (list org-z-insert-link--fallback))
      :buffer "*org-z-insert-link*")
     (pop helm-org-rifle-actions)))
-
 
 (defun org-z-knowledge--search (targets &optional rg-opts)
   (let ((helm-rg-default-extra-args rg-opts)
@@ -146,7 +158,7 @@
      nil
      targets)))
 
-(defcustom org-z-knowledge-dirs (list org-directory "/Users/mark/Dropbox (Personal)/Apps/KiwiApp/wiki/")
+(defcustom org-z-knowledge-dirs org-z-directories
   "Directories in which to perform full-text knowledge search."
   :type 'list
   :group 'org-z)
@@ -164,7 +176,6 @@
                                   `("-t" ,ft))
                                 org-z-knowledge-filetypes))))
     (org-z-knowledge--search org-z-knowledge-dirs rg-opts)))
-
 
 ;;;###autoload
 (define-minor-mode org-z-mode
