@@ -6,7 +6,7 @@
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
 ;; Package-Version: 0.0.1
-;; Package-Requires: ((emacs "26.1") (org "9.3") (helm-org-rifle "1.7.1") (helm-rg "0.1"))
+;; Package-Requires: ((emacs "26.1") (org "9.3") (helm-org-rifle "1.7.1") (helm-rg "0.1") (dash "2.12") (f "0.18.1") (s "1.10.0"))
 ;; Keywords: (outlines)
 
 ;;; Commentary:
@@ -20,6 +20,9 @@
 (require 'org-capture)
 (require 'helm-org-rifle)
 (require 'helm-rg)
+(require 'dash)
+(require 'f)
+(require 's)
 
 (defgroup org-z nil
   "org-z customizable variables."
