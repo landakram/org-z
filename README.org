@@ -14,6 +14,14 @@ org-z has the following features:
 + Links are managed automatically using [[https://orgmode.org/manual/Handling-Links.html][org-store-link]] and org-ids
 + Links to new / missing targets auto-create targets in a configurable file location (~new.org~ by default). Creation of the new heading is customizable using a capture template.
 
+#+CAPTION: Inserting a link to an existing heading
+#+NAME:   existing-heading
+[[./images/existing-link.gif]]
+
+#+CAPTION: Inserting a link to a new heading
+#+NAME: new-heading
+[[./images/new-link.gif]]
+
 ** Installation
 
 Install with straight.el:
