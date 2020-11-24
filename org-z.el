@@ -73,9 +73,11 @@ argument, which is the missing heading."
         (point (org-capture-get :insertion-point)))
     (with-current-buffer buf
       (save-excursion
-        (goto-char point)
-        (call-interactively 'org-store-link)))
-    (remove-hook 'org-capture-before-finalize-hook #'org-z-capture--before-finalize-hook)))
+        (save-restriction
+          (widen)
+          (goto-char point)
+          (call-interactively 'org-store-link)))))
+  (remove-hook 'org-capture-before-finalize-hook #'org-z-capture--before-finalize-hook))
 
 (defun org-z-capture--after-finalize-hook ()
   "After org-z-capture, insert a link."
