@@ -154,7 +154,7 @@ argument, which is the missing heading."
 
 ;;;###autoload
 (defun org-z-insert-link ()
-  "Insert link to CANDIDATE in current location."
+  "Begin inserting a link to an org headline at point. A helm interface allows interactively searching for headlines to link."
   (interactive)
 
   (let* ((helm-candidate-separator " ")
@@ -187,6 +187,7 @@ argument, which is the missing heading."
 
 ;;;###autoload
 (defun org-z-knowledge-search ()
+  "Perform full-text search on matching files in `org-z-knowledge-dirs'."
   (interactive)
   (let ((rg-opts (flatten-list (mapcar
                                 (lambda (ft)
