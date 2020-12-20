@@ -55,6 +55,16 @@
   :type 'file
   :group 'org-z)
 
+(defcustom org-z-refile-missing-heading nil
+  "After inserting a link to a missing heading, the missing heading can be refiled. Valid options are:
+
+nil: No refiling will occur.
+'interactive: The heading will be refiled interactively.
+'subheading: The heading will be automatically refiled to a subheading of the current heading (where the link is being inserted).
+'sibling: The heading will be automatically refiled to a sibling of the current heading (where the link is being inserted)."
+  :type 'symbol
+  :group 'org-z)
+
 (defun org-z-capture--templates (heading)
   "The capture templates used by org-z to create a heading when inserting a link to a heading that doesn't exist."
   (let ((body (concat "* " heading "%?\n:LOGBOOK:\n- Added %U\n:END:\n")))
@@ -84,6 +94,9 @@ argument, which is the missing heading."
   (org-z-helm-org-rifle--store-link candidate)
   (call-interactively 'org-insert-link))
 
+(defvar org-z-insert-missing-after-hook nil
+  "A hook that is called after inserting a link to a missing heading.")
+
 (defun org-z-capture--before-finalize-hook ()
   "During org-z-capture, store a link to the just-inserted headline."
   (let ((buf (org-capture-get :buffer))
@@ -109,10 +122,42 @@ argument, which is the missing heading."
       (setq keys (caar org-capture-templates)))
     (org-capture goto keys)))
 
+(defun org-z--refile-missing ()
+  (let ((refile-loc
+         (list
+          (org-display-outline-path t t nil t)
+          (buffer-file-name (buffer-base-buffer))
+          nil
+          (org-with-wide-buffer
+           (org-back-to-heading t)
+           (point-marker)))))
+
+    (org-mark-ring-push)
+
+    (org-capture-goto-last-stored)
+
+    (cond ((eq org-z-refile-missing-heading 'interactive)
+           (org-refile))
+
+          ((eq org-z-refile-missing-heading 'subheading)
+           (org-refile nil nil refile-loc))
+
+          ((eq org-z-refile-missing-heading 'sibling)
+           (org-refile nil nil refile-loc)
+           (org-refile-goto-last-stored)
+           (outline-promote)))
+
+    (org-mark-ring-goto)))
+
 (defun org-z--insert-link-to-new-heading (candidate)
   (add-hook 'org-capture-before-finalize-hook #'org-z-capture--before-finalize-hook)
   (add-hook 'org-capture-after-finalize-hook #'org-z-capture--after-finalize-hook)
-  (org-z-insert-missing candidate))
+  (org-z-insert-missing candidate)
+
+  (when org-z-refile-missing-heading
+    (org-z--refile-missing))
+
+  (run-hooks 'org-z-insert-missing-after-hook))
 
 (defvar org-z-insert-link--fallback
   (helm-build-dummy-source "Create link to new heading"
@@ -153,13 +198,20 @@ argument, which is the missing heading."
             (kill-buffer (helm-attr 'buffer source))))))))
 
 ;;;###autoload
-(defun org-z-insert-link ()
+(defun org-z-insert-link (prefix)
   "Begin inserting a link to an org headline at point. A helm interface allows interactively searching for headlines to link."
-  (interactive)
-
-  (let* ((helm-candidate-separator " ")
+  (interactive "P")
+  (let* ((org-z-refile-missing-heading (cond ((equal prefix '(4))
+                                              'sibling)
+                                             ((equal prefix '(16))
+                                              'subheading)
+                                             (t
+                                              org-z-refile-missing-heading)))
+         (current-prefix-arg nil)
+         (helm-candidate-separator " ")
          (helm-cleanup-hook (org-z--org-rifle-cleanup-hook))
          (org-rifle-sources (org-z--org-rifle-files-source (org-z--list-org-files org-z-directories))))
+
     (add-to-list 'helm-org-rifle-actions '("Insert link" . org-z-helm-org-rifle--insert-link))
     (helm
      :input (thing-at-point 'symbol 'no-properties)
