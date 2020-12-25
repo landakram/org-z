@@ -6,7 +6,7 @@
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
 ;; Version: 0.0.1
-;; Package-Requires: ((emacs "27.1") (org "9.3") (helm-org-rifle "1.7.1") (helm-rg "0.1") (dash "2.12") (f "0.18.1") (s "1.10.0"))
+;; Package-Requires: ((emacs "27.1") (org "9.3") (org-ql "0.6-pre") (helm-rg "0.1") (dash "2.12") (f "0.18.1") (s "1.10.0"))
 ;; Keywords: org-mode, outlines
 
 ;; This file is NOT part of GNU Emacs.
@@ -35,7 +35,7 @@
 (require 'org)
 (require 'org-id)
 (require 'org-capture)
-(require 'helm-org-rifle)
+(require 'helm-org-ql)
 (require 'helm-rg)
 (require 'dash)
 (require 'f)
@@ -80,18 +80,19 @@ argument, which is the missing heading."
   :type 'function
   :group 'org-z)
 
-(defun org-z-helm-org-rifle--store-link (candidate)
+(defun org-z-helm-org-ql--store-link (candidate)
   "Store link to CANDIDATE."
-  (-let (((buffer . pos) candidate))
+  (let ((buffer (marker-buffer candidate))
+        (pos (marker-position candidate)))
     (save-excursion
       (with-current-buffer buffer
         (goto-char pos)
         (call-interactively 'org-store-link)))))
 
-(defun org-z-helm-org-rifle--insert-link (candidate)
+(defun org-z-helm-org-ql--insert-link (candidate)
   "Insert link to CANDIDATE in current location."
   (interactive)
-  (org-z-helm-org-rifle--store-link candidate)
+  (org-z-helm-org-ql--store-link candidate)
   (call-interactively 'org-insert-link))
 
 (defvar org-z-insert-missing-after-hook nil
@@ -165,38 +166,6 @@ argument, which is the missing heading."
              "Insert link to new heading"
              #'org-z--insert-link-to-new-heading)))
 
-;; These functions are basically just extracted from helm-org-rifle
-(defun org-z--list-org-files (directories &optional toggle-recursion)
-  (let* ((recursive (if (or toggle-recursion current-prefix-arg)
-                        (not helm-org-rifle-directories-recursive)
-                      helm-org-rifle-directories-recursive))
-         (files (-flatten (--map (f-files it
-                                          (lambda (file)
-                                            (s-matches? helm-org-rifle-directories-filename-regexp (f-filename file)))
-                                          recursive)
-                                 directories))))
-    (if files
-        files
-      (error "No org files found in directories: %s" (s-join " " directories)))))
-(defun org-z--org-rifle-files-source (files)
-  (--map (helm-org-rifle-get-source-for-file it) files))
-(defun org-z--org-rifle-cleanup-hook ()
-  (lambda ()
-    ;; Close new buffers if enabled
-    (when helm-org-rifle-close-unopened-file-buffers
-      (if (= 0 helm-exit-status)
-          ;; Candidate selected; close other new buffers
-          (let ((candidate-source (helm-attr 'name (helm-get-current-source))))
-            (dolist (source helm-sources)
-              (unless (or (equal (helm-attr 'name source)
-                                 candidate-source)
-                          (not (helm-attr 'new-buffer source)))
-                (kill-buffer (helm-attr 'buffer source)))))
-        ;; No candidates; close all new buffers
-        (dolist (source helm-sources)
-          (when (helm-attr 'new-buffer source)
-            (kill-buffer (helm-attr 'buffer source))))))))
-
 ;;;###autoload
 (defun org-z-insert-link (prefix)
   "Begin inserting a link to an org headline at point. A helm interface allows interactively searching for headlines to link."
@@ -209,15 +178,14 @@ argument, which is the missing heading."
                                               org-z-refile-missing-heading)))
          (current-prefix-arg nil)
          (helm-candidate-separator " ")
-         (helm-cleanup-hook (org-z--org-rifle-cleanup-hook))
-         (org-rifle-sources (org-z--org-rifle-files-source (org-z--list-org-files org-z-directories))))
+         (_ (add-to-list 'helm-org-ql-actions '("Insert link" . org-z-helm-org-ql--insert-link)))
+         (org-sources (helm-org-ql-source (org-ql-search-directories-files :directories org-z-directories))))
 
-    (add-to-list 'helm-org-rifle-actions '("Insert link" . org-z-helm-org-rifle--insert-link))
     (helm
      :input (thing-at-point 'symbol 'no-properties)
-     :sources (append org-rifle-sources (list org-z-insert-link--fallback))
+     :sources (append org-sources (list org-z-insert-link--fallback))
      :buffer "*org-z-insert-link*")
-    (pop helm-org-rifle-actions)))
+    (pop helm-org-ql-actions)))
 
 (defun org-z-knowledge--search (targets &optional rg-opts)
   (let ((helm-rg-default-extra-args rg-opts)
