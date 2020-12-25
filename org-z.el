@@ -6,7 +6,7 @@
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
 ;; Version: 0.0.1
-;; Package-Requires: ((emacs "27.1") (org "9.3") (org-ql "0.6-pre") (helm-rg "0.1") (dash "2.12") (f "0.18.1") (s "1.10.0"))
+;; Package-Requires: ((emacs "27.1") (org "9.3") (prescient "5.0") (org-ql "0.6-pre") (helm-rg "0.1") (dash "2.12") (f "0.18.1") (s "1.10.0"))
 ;; Keywords: org-mode, outlines
 
 ;; This file is NOT part of GNU Emacs.
@@ -35,6 +35,8 @@
 (require 'org)
 (require 'org-id)
 (require 'org-capture)
+(require 'org-ql)
+(require 'prescient)
 (require 'helm-org-ql)
 (require 'helm-rg)
 (require 'dash)
@@ -166,6 +168,36 @@ argument, which is the missing heading."
              "Insert link to new heading"
              #'org-z--insert-link-to-new-heading)))
 
+(defun org-z-helm-candidate-transformer (candidates source)
+  (sort candidates (lambda (c1 c2)
+                     (prescient-sort-compare (car c1) (car c2)))))
+
+(defun org-z-helm-org-ql-source (buffers-files)
+  (helm-make-source "org-z" 'helm-source-sync
+    :candidates (lambda ()
+                  (let* ((query (org-ql--query-string-to-sexp helm-pattern))
+                         (window-width (window-width (helm-window))))
+                    (when query
+                      (with-current-buffer (helm-buffer-get)
+                        (setq helm-org-ql-buffers-files buffers-files))
+                      (ignore-errors
+                        ;; Ignore errors that might be caused by partially typed queries.
+                        (org-ql-select buffers-files query
+                          :action `(helm-org-ql--heading ,window-width))))))
+    :match #'identity
+    :filtered-candidate-transformer #'org-z-helm-candidate-transformer
+    :fuzzy-match nil
+    :multimatch nil
+    :nohighlight t
+    :volatile t
+    :keymap helm-org-ql-map
+    :action helm-org-ql-actions))
+
+(defun org-z-helm-select-action-hook ()
+  (let ((source (helm-get-current-source))
+        (selection (helm-get-selection nil t)))
+    (prescient-remember selection)))
+
 ;;;###autoload
 (defun org-z-insert-link (prefix)
   "Begin inserting a link to an org headline at point. A helm interface allows interactively searching for headlines to link."
@@ -179,12 +211,14 @@ argument, which is the missing heading."
          (current-prefix-arg nil)
          (helm-candidate-separator " ")
          (_ (add-to-list 'helm-org-ql-actions '("Insert link" . org-z-helm-org-ql--insert-link)))
-         (org-sources (helm-org-ql-source (org-ql-search-directories-files :directories org-z-directories))))
+         (org-sources (org-z-helm-org-ql-source (org-ql-search-directories-files :directories org-z-directories))))
 
+    (add-hook 'helm-before-action-hook #'org-z-helm-select-action-hook)
     (helm
      :input (thing-at-point 'symbol 'no-properties)
      :sources (append org-sources (list org-z-insert-link--fallback))
      :buffer "*org-z-insert-link*")
+    (pop helm-before-action-hook)
     (pop helm-org-ql-actions)))
 
 (defun org-z-knowledge--search (targets &optional rg-opts)
