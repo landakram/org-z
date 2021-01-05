@@ -10,9 +10,9 @@ By treating headings, rather than pages, as first-class, we can use standard fun
 
 org-z has the following features:
 
-+ Insert links to org headings with interactive search (~C-c-.~ by default)
-+ Links are managed automatically using [[https://orgmode.org/manual/Handling-Links.html][org-store-link]] and org-ids
-+ Links to new / missing targets auto-create targets in a configurable file location (~new.org~ by default). Creation of the new heading is customizable using a capture template.
+ - Insert links to org headings with interactive search (~C-c-.~ by default). [[https://github.com/emacs-helm/helm][Helm]] and [[https://github.com/raxod502/selectrum][Selectrum]] are supported.
+ - Links are managed automatically using [[https://orgmode.org/manual/Handling-Links.html][org-store-link]] and org-ids
+ - Links to new / missing targets auto-create targets in a configurable file location (~new.org~ by default). Creation of the new heading is customizable using a capture template.
 
 #+CAPTION: Inserting a link to an existing heading
 #+NAME:   existing-heading
@@ -32,6 +32,15 @@ Install with straight.el:
     :config
     (org-z-mode 1))
 #+end_src
+
+org-z requires a completion backend. [[https://github.com/emacs-helm/helm][Helm]] and [[https://github.com/raxod502/selectrum][Selectrum]] are currently supported. You'll need to load one of the completion backend packages, in addition to org-z itself:
+
+#+begin_src emacs-lisp
+  (use-package org-z-selectrum
+    :straight (org-z :type git :host github :repo "landakram/org-z"))
+#+end_src
+
+Loading the package sets the completion backend by appending to ~org-z-completion-backends~ and setting ~org-z-completion-backend~.
 
 ** A lightweight zettelkasten
 

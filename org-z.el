@@ -5,8 +5,8 @@
 ;; Author: Mark Hudnall <me@markhudnall.com>
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
-;; Version: 0.0.1
-;; Package-Requires: ((emacs "27.1") (org "9.3") (prescient "5.0") (org-ql "0.6-pre") (helm-rg "0.1") (dash "2.12") (f "0.18.1") (s "1.10.0"))
+;; Version: 0.0.2
+;; Package-Requires: ((emacs "27.1") (org "9.3") (dash "2.12") (f "0.18.1") (s "1.10.0"))
 ;; Keywords: org-mode, outlines
 
 ;; This file is NOT part of GNU Emacs.
@@ -32,16 +32,15 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'cl-generic)
 (require 'org)
 (require 'org-id)
 (require 'org-capture)
-(require 'org-ql)
-(require 'prescient)
-(require 'helm-org-ql)
-(require 'helm-rg)
-(require 'dash)
+
 (require 'f)
 (require 's)
+(require 'dash)
 
 (defgroup org-z nil
   "org-z customizable variables."
@@ -82,7 +81,23 @@ argument, which is the missing heading."
   :type 'function
   :group 'org-z)
 
-(defun org-z-helm-org-ql--store-link (candidate)
+(defcustom org-z-use-prescient nil
+  "When t, use prescient.el to sort results. If you already have prescient enabled through
+your completion system, you should leave this as nil."
+  :type 'boolean
+  :group 'org-z)
+
+(defcustom org-z-completion-backend nil
+  "The completion backend to use when searching for links to insert. Valid options are 'helm or 'selectrum.
+
+Note that completion backends are implemented in separate packages. You should ensure that a completion backend
+package such as org-z-selectrum is installed in addition to org-z."
+  :type '(choice
+          (const :tag "Helm" helm)
+          (const :tag "Selectrum" selectrum))
+  :group 'org-z)
+
+(defun org-z--store-link-to-candidate (candidate)
   "Store link to CANDIDATE."
   (let ((buffer (marker-buffer candidate))
         (pos (marker-position candidate)))
@@ -91,10 +106,10 @@ argument, which is the missing heading."
         (goto-char pos)
         (call-interactively 'org-store-link)))))
 
-(defun org-z-helm-org-ql--insert-link (candidate)
+(defun org-z--insert-link-to-candidate (candidate)
   "Insert link to CANDIDATE in current location."
   (interactive)
-  (org-z-helm-org-ql--store-link candidate)
+  (org-z--store-link-to-candidate candidate)
   (call-interactively 'org-insert-link))
 
 (defvar org-z-insert-missing-after-hook nil
@@ -120,7 +135,7 @@ argument, which is the missing heading."
 (defun org-z-insert-missing (heading)
   "When inserting a link to a headline that doesn't exist, use a custom capture template to add the new headline."
   (let ((org-capture-templates (funcall org-z-capture-templates heading))
-        goto key)
+        goto keys)
     (when (= (length org-capture-templates) 1)
       (setq keys (caar org-capture-templates)))
     (org-capture goto keys)))
@@ -162,45 +177,31 @@ argument, which is the missing heading."
 
   (run-hooks 'org-z-insert-missing-after-hook))
 
-(defvar org-z-insert-link--fallback
-  (helm-build-dummy-source "Create link to new heading"
-    :action (helm-make-actions
-             "Insert link to new heading"
-             #'org-z--insert-link-to-new-heading)))
+(defun org-z--format-org-ql-heading (window-width)
+  "Return string for completion backend for heading at point.
+WINDOW-WIDTH should be the width of the window."
+  (font-lock-ensure (point-at-bol) (point-at-eol))
+  (let* ((prefix (concat (buffer-name) ":"))
+         (width (- window-width (length prefix)))
+         (heading (org-get-heading t))
+         (path (-> (org-get-outline-path)
+                   (org-format-outline-path width nil "")
+                   (org-split-string "")))
+         (path (concat (s-join "/" path) "/" heading)))
+    (cons (concat prefix path) (point-marker))))
 
-(defun org-z-helm-candidate-transformer (candidates source)
-  (sort candidates (lambda (c1 c2)
-                     (prescient-sort-compare (car c1) (car c2)))))
+(cl-defstruct org-z--completion-backend
+  org-z--insert-link)
 
-(defun org-z-helm-org-ql-source (buffers-files)
-  (helm-make-source "org-z" 'helm-source-sync
-    :candidates (lambda ()
-                  (let* ((query (org-ql--query-string-to-sexp helm-pattern))
-                         (window-width (window-width (helm-window))))
-                    (when query
-                      (with-current-buffer (helm-buffer-get)
-                        (setq helm-org-ql-buffers-files buffers-files))
-                      (ignore-errors
-                        ;; Ignore errors that might be caused by partially typed queries.
-                        (org-ql-select buffers-files query
-                          :action `(helm-org-ql--heading ,window-width))))))
-    :match #'identity
-    :filtered-candidate-transformer #'org-z-helm-candidate-transformer
-    :fuzzy-match nil
-    :multimatch nil
-    :nohighlight t
-    :volatile t
-    :keymap helm-org-ql-map
-    :action helm-org-ql-actions))
+(cl-defgeneric org-z--insert-link (org-z--completion-backend))
 
-(defun org-z-helm-select-action-hook ()
-  (let ((source (helm-get-current-source))
-        (selection (helm-get-selection nil t)))
-    (prescient-remember selection)))
+(defvar org-z-completion-backends '()
+  "Completion backends for org-z. This is a plist where keys are `org-z-completion-backend' and
+values are instances of an `org-z--completion-backend'.")
 
 ;;;###autoload
 (defun org-z-insert-link (prefix)
-  "Begin inserting a link to an org headline at point. A helm interface allows interactively searching for headlines to link."
+  "Begin inserting a link to an org headline at point. A completion backend allows interactively searching for headlines to link."
   (interactive "P")
   (let* ((org-z-refile-missing-heading (cond ((equal prefix '(4))
                                               'sibling)
@@ -209,17 +210,11 @@ argument, which is the missing heading."
                                              (t
                                               org-z-refile-missing-heading)))
          (current-prefix-arg nil)
-         (helm-candidate-separator " ")
-         (_ (add-to-list 'helm-org-ql-actions '("Insert link" . org-z-helm-org-ql--insert-link)))
-         (org-sources (org-z-helm-org-ql-source (org-ql-search-directories-files :directories org-z-directories))))
+         (completion-backend (plist-get org-z-completion-backends org-z-completion-backend)))
+    (when (not completion-backend)
+      (user-error "Completion backend is nil! This means that either `org-z-completion-backend' is invalid, or you forgot to load one of the org-z completion backends, which are separate packages. If you use helm for example, make sure that org-z-helm is loaded in addntion to org-z."))
 
-    (add-hook 'helm-before-action-hook #'org-z-helm-select-action-hook)
-    (helm
-     :input (thing-at-point 'symbol 'no-properties)
-     :sources (append org-sources (list org-z-insert-link--fallback))
-     :buffer "*org-z-insert-link*")
-    (pop helm-before-action-hook)
-    (pop helm-org-ql-actions)))
+    (org-z--insert-link completion-backend)))
 
 (defun org-z-knowledge--search (targets &optional rg-opts)
   (let ((helm-rg-default-extra-args rg-opts)
