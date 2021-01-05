@@ -1,0 +1,18 @@
+* Changelog
+** v0.0.2
+*** Breaking changes
+**** Completion backends
+org-z now supports both Helm and Selectrum for completion. The completion backend must be explicitly set by loading one of ~org-z-helm~ or ~org-z-selectrum~ (which each depend on a respective completion framework) in addition to ~org-z~. Working configuration looks like this:
+
+#+begin_src emacs-lisp
+  (use-package org-z
+    :straight (org-z :type git :host github :repo "landakram/org-z")
+    :config
+    (org-z-mode 1))
+
+  (use-package org-z-selectrum
+    :straight (org-z :type git :host github :repo "landakram/org-z"))
+#+end_src
+*** Other changes
+**** Sort links with prescient.el
+Results can be optionally sorted with [[https://github.com/raxod502/prescient.el][prescient.el]] by setting ~org-z-use-prescient~. Note that if you already have prescient enabled through your completion system, you should leave this as nil. 
