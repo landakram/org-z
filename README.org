@@ -16,11 +16,11 @@ org-z has the following features:
 
 #+CAPTION: Inserting a link to an existing heading
 #+NAME:   existing-heading
-[[./images/existing-link.gif]]
+[[./images/org-z-existing-heading.gif]]
 
 #+CAPTION: Inserting a link to a new heading
 #+NAME: new-heading
-[[./images/new-link.gif]]
+[[./images/org-z-new-heading.gif]]
 
 ** Installation
 
