@@ -5,8 +5,8 @@
 ;; Author: Mark Hudnall <me@markhudnall.com>
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
-;; Version: 0.0.2
-;; Package-Requires: ((emacs "27.1") (org-z "0.0.2") (org-ql "0.6-pre") (helm "3.3") (helm-org "1.0"))
+;; Version: 0.0.3
+;; Package-Requires: ((emacs "27.1") (org-z "0.0.2") (org-ql "0.6-pre") (helm "3.3") (helm-org "1.0") (helm-org-ql "0.6-pre"))
 ;; Keywords: org-mode, outlines
 
 ;; This file is NOT part of GNU Emacs.
@@ -68,10 +68,13 @@
                     (when query
                       (with-current-buffer (helm-buffer-get)
                         (setq helm-org-ql-buffers-files buffers-files))
+                      ;; Ignore errors that might be caused by partially typed queries.
                       (ignore-errors
-                        ;; Ignore errors that might be caused by partially typed queries.
-                        (org-ql-select buffers-files query
-                          :action `(org-z--format-org-ql-heading ,window-width))))))
+                        (mapcar (lambda (candidate)
+                                  (let ((point-marker (get-text-property 0 'point-marker candidate)))
+                                    (cons candidate point-marker)))
+                                (org-ql-select buffers-files query
+                                  :action `(org-z--format-org-ql-heading ,window-width)))))))
     :match #'identity
     :filtered-candidate-transformer #'org-z-helm-candidate-transformer
     :fuzzy-match nil
