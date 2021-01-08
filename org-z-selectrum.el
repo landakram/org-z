@@ -40,6 +40,8 @@
 
 (require 'org-z)
 
+(require 'org-ql)
+(require 'org-ql-search)
 (require 'selectrum)
 
 (cl-defstruct org-z--selectrum-backend)

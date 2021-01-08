@@ -42,6 +42,7 @@
 (require 'org-z)
 
 (require 'org-ql)
+(require 'org-ql-search)
 (require 'helm-org-ql)
 
 (defun org-z-insert-link--fallback ()
