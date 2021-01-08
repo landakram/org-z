@@ -5,7 +5,7 @@
 ;; Author: Mark Hudnall <me@markhudnall.com>
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
-;; Version: 0.0.2
+;; Version: 0.0.3
 ;; Package-Requires: ((emacs "27.1") (org "9.3") (dash "2.12") (f "0.18.1") (s "1.10.0"))
 ;; Keywords: org-mode, outlines
 
@@ -188,7 +188,10 @@ WINDOW-WIDTH should be the width of the window."
                    (org-format-outline-path width nil "")
                    (org-split-string "")))
          (path (concat (s-join "/" path) "/" heading)))
-    (cons (concat prefix path) (point-marker))))
+    (propertize
+     (concat prefix path)
+     'point-marker
+     (point-marker))))
 
 (cl-defstruct org-z--completion-backend
   org-z--insert-link)

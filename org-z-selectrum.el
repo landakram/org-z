@@ -4,7 +4,7 @@
 
 ;; Author: Mark Hudnall <me@markhudnall.com>
 ;; URL: https://github.com/landakram/org-z
-;; Version: 0.0.2
+;; Version: 0.0.3
 ;; Package-Requires: ((emacs "27.1") (org-z "0.0.2") (org-ql "0.6-pre") (selectrum "3.0"))
 ;; Keywords: org-mode, outlines
 
@@ -40,6 +40,8 @@
 
 (require 'org-z)
 
+(require 'org-ql)
+(require 'org-ql-search)
 (require 'selectrum)
 
 (cl-defstruct org-z--selectrum-backend)
@@ -55,12 +57,8 @@
                            (when query
                              (ignore-errors
                                ;; Ignore errors that might be caused by partially typed queries.
-                               (mapcar (lambda (candidate)
-                                         (propertize (car candidate)
-                                                     'point-marker
-                                                     (cdr candidate)))
-                                       (org-ql-select buffers-files query
-                                         :action `(org-z--format-org-ql-heading ,window-width))))))))
+                               (org-ql-select buffers-files query
+                                 :action `(org-z--format-org-ql-heading ,window-width)))))))
          (result (selectrum-read "Insert link: " candidate-fn
                                  :initial-input (thing-at-point 'symbol 'no-properties))))
     (if-let ((point-marker (get-text-property 0 'point-marker result)))

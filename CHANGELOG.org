@@ -1,4 +1,11 @@
 * Changelog
+** v0.0.3
+*** Bug fixes
+**** Fix completion backends
+***** Fix missing imports
+These were causing errors like: ~Symbol's function definition is void: org-ql-search-directories-files~.
+***** Fix helm backend not showing results
+Because ~org-z--format-org-ql-heading~ returned a cons cell, ~org-ql-select~ tried to flatten it and failed silently due to ~ignore-errors~. Return text with a point-marker property instead.
 ** v0.0.2
 *** Breaking changes
 **** Completion backends
