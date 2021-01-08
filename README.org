@@ -37,7 +37,7 @@ org-z requires a completion backend. [[https://github.com/emacs-helm/helm][Helm]
 
 #+begin_src emacs-lisp
   (use-package org-z-selectrum
-    :straight (org-z :type git :host github :repo "landakram/org-z"))
+    :straight (org-z-selectrum :type git :host github :repo "landakram/org-z"))
 #+end_src
 
 Loading the package sets the completion backend by appending to ~org-z-completion-backends~ and setting ~org-z-completion-backend~.

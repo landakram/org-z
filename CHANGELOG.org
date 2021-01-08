@@ -18,7 +18,7 @@ org-z now supports both Helm and Selectrum for completion. The completion backen
     (org-z-mode 1))
 
   (use-package org-z-selectrum
-    :straight (org-z :type git :host github :repo "landakram/org-z"))
+    :straight (org-z-selectrum :type git :host github :repo "landakram/org-z"))
 #+end_src
 *** Other changes
 **** Sort links with prescient.el
