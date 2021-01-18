@@ -193,6 +193,48 @@ WINDOW-WIDTH should be the width of the window."
      'point-marker
      (point-marker))))
 
+(defun org-z--backlinks-query (marker)
+  "Return an org-ql query to find backlinks for the heading at MARKER."
+  (let* ((id (org-entry-get marker "ID"))
+         (custom-id (org-entry-get marker "CUSTOM_ID"))
+         ;; FIXME: Do CUSTOM_ID links also have an "id:" prefix?
+         (query (cond ((and id custom-id)
+                       ;; This will be slow because it isn't optimized to a single regexp.  :(
+                       (warn "Entry has both ID and CUSTOM_ID set; query will be slow")
+                       `(or (link :target ,(concat "id:" id))
+                            (link :target ,(concat "id:" custom-id))))
+                      ((or id custom-id)
+                       `(link :target ,(concat "id:" (or id custom-id))))
+                      (t (error "Entry has no ID nor CUSTOM_ID property")))))
+    query))
+
+(defun org-z-backlinks-at-point ()
+  "Show backlinks for an org header at the current point using `completing-read'.
+Selecting a backlink jumps to the backlink's heading."
+  (interactive)
+  (let* ((marker (point-marker))
+         (query (org-z--backlinks-query marker))
+         (buffers-files (org-ql-search-directories-files :directories org-z-directories))
+         (window-width (window-text-width))
+         (results (org-ql-select buffers-files query :action `(org-z--format-org-ql-heading ,window-width)))
+         ;; completing-read strips all text-properties on the result, which is how we normally convey the point-marker.
+         ;; Build up an alist that we can look up after the completing-read instead.
+         (results-lookup (mapcar (lambda (r)
+                                   `(,(substring-no-properties r 0) . ,(get-text-property 0 'point-marker r)))
+                                 results)))
+    (if (not results)
+        (message "No backlinks.")
+      (let ((backlink (completing-read "Backlinks: " results)))
+        (setq org-z--debug-backlink backlink)
+        (if-let* ((result (assoc backlink results-lookup))
+                  (point-marker (cdr result))
+                  (buf (marker-buffer point-marker)))
+            (progn
+              (push-mark)
+              (switch-to-buffer buf)
+              (goto-char point-marker))
+          (message "No backlink selected."))))))
+
 (cl-defstruct org-z--completion-backend
   org-z--insert-link)
 
@@ -237,6 +279,11 @@ values are instances of an `org-z--completion-backend'.")
   :type 'list
   :group 'org-z)
 
+(defcustom org-z-show-backlinks t
+  "When t, show backlinks for the entry at point in the echo area. This functionality requires org-eldoc."
+  :type 'boolean
+  :group 'org-z)
+
 ;;;###autoload
 (defun org-z-knowledge-search ()
   "Perform full-text search on matching files in `org-z-knowledge-dirs'."
@@ -246,6 +293,67 @@ values are instances of an `org-z--completion-backend'.")
                                   `("-t" ,ft))
                                 org-z-knowledge-filetypes))))
     (org-z-knowledge--search org-z-knowledge-dirs rg-opts)))
+
+(defun org-z-eldoc-get-breadcrumb ()
+  (let* ((marker (point-marker))
+         (buffers-files (org-ql-search-directories-files :directories org-z-directories))
+         (query (ignore-errors
+                  (org-z--backlinks-query marker)))
+         (window-width (window-text-width))
+         (results (ignore-errors
+                    (and query
+                         (org-ql-select buffers-files query :action `(org-z--format-org-ql-heading ,window-width)))))
+         (format-results (lambda (results)
+                           (when results
+                             (let* ((num-results (length results)))
+                               (concat
+                                (propertize
+                                 (format "%d" num-results)
+                                 'face 'bold)
+                                (if (> num-results 1)
+                                    " backlinks"
+                                  " backlink"))))))
+         (breadcrumb (org-eldoc-get-breadcrumb)))
+    (message (funcall format-results results))
+    (when breadcrumb
+      (if (not results)
+          breadcrumb
+        (let* ((width (frame-width))
+               (formatted-results (funcall format-results results))
+               (results-len (length formatted-results))
+               (breadcrumb-len (length breadcrumb))
+               (total-len-w-space (+ results-len breadcrumb-len 3)))
+          (cond
+           ((and (<= total-len-w-space width)
+                 (not (eq eldoc-echo-area-use-multiline-p t)))
+            (concat breadcrumb " " "(" formatted-results ")"))
+           ((eq eldoc-echo-area-use-multiline-p t)
+            (apply
+             #'concat
+             breadcrumb
+             (list
+              "\n"
+              formatted-results))
+            )
+           ((and (> total-len-w-space width)
+                 (bound-and-true-p eldoc-echo-area-use-multiline-p))
+            (apply
+             #'concat
+             breadcrumb
+             (list
+              "\n"
+              formatted-results)))
+           ((and (> total-len-w-space width)
+                 (not (bound-and-true-p eldoc-echo-area-use-multiline-p)))
+            (progn
+              (setf (substring breadcrumb (- width (+ results-len 5))) (concat ".." " " "(" formatted-results ")"))
+              breadcrumb))))))))
+
+(defun org-z-eldoc-advice (orig-fun &rest args)
+  (if (and org-z-mode org-z-show-backlinks)
+      (or (org-z-eldoc-get-breadcrumb)
+          (funcall orig-fun args))
+    (funcall orig-fun args)))
 
 ;;;###autoload
 (define-minor-mode org-z-mode
@@ -259,6 +367,8 @@ values are instances of an `org-z--completion-backend'.")
   :global t
   (when (not org-id-link-to-org-use-id)
     (setq org-id-link-to-org-use-id t)))
+
+(advice-add 'org-eldoc-documentation-function :around #'org-z-eldoc-advice)
 
 (provide 'org-z)
 
