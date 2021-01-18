@@ -193,6 +193,46 @@ WINDOW-WIDTH should be the width of the window."
      'point-marker
      (point-marker))))
 
+(defun org-z--backlinks-query (marker)
+  "Return an org-ql query to find backlinks for the heading at MARKER."
+  (let* ((id (org-entry-get marker "ID"))
+         (custom-id (org-entry-get marker "CUSTOM_ID"))
+         ;; FIXME: Do CUSTOM_ID links also have an "id:" prefix?
+         (query (cond ((and id custom-id)
+                       ;; This will be slow because it isn't optimized to a single regexp.  :(
+                       (warn "Entry has both ID and CUSTOM_ID set; query will be slow")
+                       `(or (link :target ,(concat "id:" id))
+                            (link :target ,(concat "id:" custom-id))))
+                      ((or id custom-id)
+                       `(link :target ,(concat "id:" (or id custom-id))))
+                      (t (error "Entry has no ID nor CUSTOM_ID property")))))
+    query))
+
+(defun org-z-backlinks-at-point ()
+  "Show backlinks for an org header at the current point using `completing-read'.
+Selecting a backlink jumps to the backlink's heading."
+  (interactive)
+  (let* ((marker (point-marker))
+         (query (org-z--backlinks-query marker))
+         (buffers-files (org-ql-search-directories-files :directories org-z-directories))
+         (window-width (window-text-width))
+         (results (org-ql-select buffers-files query :action `(org-z--format-org-ql-heading ,window-width)))
+         ;; completing-read strips all text-properties on the result, which is how we normally convey the point-marker.
+         ;; Build up an alist that we can look up after the completing-read instead.
+         (results-lookup (mapcar (lambda (r)
+                                   `(,(substring-no-properties r 0) . ,(get-text-property 0 'point-marker r)))
+                                 results))
+         (backlink (completing-read "Backlinks: " results)))
+    (setq org-z--debug-backlink backlink)
+    (if-let* ((result (assoc backlink results-lookup))
+              (point-marker (cdr result))
+              (buf (marker-buffer point-marker)))
+        (progn
+          (push-mark)
+          (switch-to-buffer buf)
+          (goto-char point-marker))
+      (message "No backlink selected."))))
+
 (cl-defstruct org-z--completion-backend
   org-z--insert-link)
 
@@ -237,6 +277,11 @@ values are instances of an `org-z--completion-backend'.")
   :type 'list
   :group 'org-z)
 
+(defcustom org-z-show-backlinks t
+  "When t, show backlinks for the entry at point in the echo area."
+  :type 'boolean
+  :group 'org-z)
+
 ;;;###autoload
 (defun org-z-knowledge-search ()
   "Perform full-text search on matching files in `org-z-knowledge-dirs'."
@@ -246,6 +291,50 @@ values are instances of an `org-z--completion-backend'.")
                                   `("-t" ,ft))
                                 org-z-knowledge-filetypes))))
     (org-z-knowledge--search org-z-knowledge-dirs rg-opts)))
+
+(defun org-z-eldoc-get-breadcrumb ()
+  (let* ((marker (point-marker))
+         (buffers-files (org-ql-search-directories-files :directories org-z-directories))
+         (query (ignore-errors
+                  (org-z--backlinks-query marker)))
+         (window-width (window-text-width))
+         (results (ignore-errors
+                    (and query
+                         (org-ql-select buffers-files query :action `(org-z--format-org-ql-heading ,window-width)))))
+         (format-results (lambda (results)
+                           (when results
+                             (let* ((num-results (length results)))
+                               (concat
+                                (propertize
+                                 (format "%d" num-results)
+                                 'face 'bold)
+                                (if (> num-results 1)
+                                    " backlinks"
+                                  " backlink"))))))
+         (breadcrumb (org-eldoc-get-breadcrumb)))
+    (when breadcrumb
+      (apply
+       #'concat
+       breadcrumb
+       (when results
+         (list
+          "\n"
+          (funcall format-results results)))))))
+
+;; TODO: org-z-eldoc-load sometimes is loaded in the wrong order and so doesn't run.
+;; Need to change this to an add-advice on org-eldoc-documentation-function
+;;
+;; TODO: Need to account for eldoc formatting directives like `eldoc-echo-area-use-multiline-p'
+
+(defun org-z-eldoc-documentation-function ()
+  (or (org-z-eldoc-get-breadcrumb)
+      (org-eldoc-documentation-function)))
+
+(defun org-z-eldoc-load ()
+  "Set up org-z-eldoc documentation function"
+  (interactive)
+  (when org-z-show-backlinks
+    (setq-local eldoc-documentation-function #'org-z-eldoc-documentation-function)))
 
 ;;;###autoload
 (define-minor-mode org-z-mode
@@ -258,7 +347,9 @@ values are instances of an `org-z--completion-backend'.")
   :require 'org-z
   :global t
   (when (not org-id-link-to-org-use-id)
-    (setq org-id-link-to-org-use-id t)))
+    (setq org-id-link-to-org-use-id t))
+
+  (add-hook 'org-mode-hook #'org-z-eldoc-load))
 
 (provide 'org-z)
 
