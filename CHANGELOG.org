@@ -1,4 +1,8 @@
 * Changelog
+** v0.0.4
+*** Bug fixes
+**** Fix org-z-selectrum
+~selectrum-read~ was deprecated and removed from selectrum. Use ~selectrum--read~ instead.
 ** v0.0.3
 *** Bug fixes
 **** Fix completion backends
