@@ -4,8 +4,8 @@
 
 ;; Author: Mark Hudnall <me@markhudnall.com>
 ;; URL: https://github.com/landakram/org-z
-;; Version: 0.0.3
-;; Package-Requires: ((emacs "27.1") (org-z "0.0.2") (org-ql "0.6-pre") (selectrum "3.0"))
+;; Version: 0.0.4
+;; Package-Requires: ((emacs "27.1") (org-z "0.0.4") (org-ql "0.6-pre") (selectrum "3.0"))
 ;; Keywords: org-mode, outlines
 
 ;; This file is NOT part of GNU Emacs.
@@ -47,7 +47,7 @@
 (cl-defstruct org-z--selectrum-backend)
 
 (cl-defmethod org-z--insert-link ((_ org-z--selectrum-backend))
-  (when (not (fboundp 'selectrum-read))
+  (when (not (fboundp 'selectrum--read))
     (user-error "org-z-completion-backend is 'selectrum but selectrum isn't loaded. Make sure selectrum is installed and required."))
 
   (let* ((buffers-files (org-ql-search-directories-files :directories org-z-directories))
@@ -59,7 +59,7 @@
                                ;; Ignore errors that might be caused by partially typed queries.
                                (org-ql-select buffers-files query
                                  :action `(org-z--format-org-ql-heading ,window-width)))))))
-         (result (selectrum-read "Insert link: " candidate-fn
+         (result (selectrum--read "Insert link: " candidate-fn
                                  :initial-input (thing-at-point 'symbol 'no-properties))))
     (if-let ((point-marker (get-text-property 0 'point-marker result)))
         (org-z--insert-link-to-candidate point-marker)
