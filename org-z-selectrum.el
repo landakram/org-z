@@ -59,8 +59,17 @@
                                ;; Ignore errors that might be caused by partially typed queries.
                                (org-ql-select buffers-files query
                                  :action `(org-z--format-org-ql-heading ,window-width)))))))
-         (result (selectrum--read "Insert link: " candidate-fn
-                                 :initial-input (thing-at-point 'symbol 'no-properties))))
+         (result
+          ;; This is sort of an ugly hack. selectrum--read refines candidates using `completion-styles', which filters
+          ;; the org-ql query further by the input. We're already effectively handling our own filtering in the candidate-fn
+          ;; so if the user has default selectrum (they are not using e.g. prescient), we ignore `selectrum-refine-candidates-function'
+          ;; for the completion
+          (let ((selectrum-refine-candidates-function
+                 (if (eq selectrum-refine-candidates-function #'selectrum-refine-candidates-using-completions-styles)
+                     (lambda (input cands) cands)
+                   selectrum-refine-candidates-function)))
+            (selectrum--read "Insert link: " candidate-fn
+                             :initial-input (thing-at-point 'symbol 'no-properties)))))
     (if-let ((point-marker (get-text-property 0 'point-marker result)))
         (org-z--insert-link-to-candidate point-marker)
       (org-z--insert-link-to-new-heading result))))
