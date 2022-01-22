@@ -5,7 +5,7 @@
 ;; Author: Mark Hudnall <me@markhudnall.com>
 ;; URL: https://github.com/landakram/org-z
 ;; Keywords: org-mode
-;; Version: 0.0.4
+;; Version: 0.0.5
 ;; Package-Requires: ((emacs "27.1") (org "9.3") (dash "2.12") (f "0.18.1") (s "1.10.0"))
 ;; Keywords: org-mode, outlines
 
