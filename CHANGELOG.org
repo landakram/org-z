@@ -1,4 +1,15 @@
 * Changelog
+** v0.0.5
+*** Features
+**** Backlinks
+:PROPERTIES:
+:ID:       a08e2a03-19be-46b0-96fc-43a6556e3710
+:END:
+ - Add a function ~org-z-backlinks-at-point~ that can be used to inspect backlinks to the current headline. This function uses completing-read to allow jumping through a backlink. This function is not bound to any key by default, leaving keybindings open to the user.
+
+ - If org-eldoc is loaded, show the number of backlinks for the current headline at point. This functionality can be turned off by unsetting ~org-z-show-backlinks~.
+
+   This function respects ~eldoc-echo-area-use-multiline-p~. If t, then the backlink message is always displayed on a new line. If truthy, message is displayed same line if there's space, or a new line if there is not enough space. If false, it is always displayed on single line (header path will be truncated).
 ** v0.0.4
 *** Bug fixes
 **** Fix org-z-selectrum
@@ -24,6 +35,6 @@ org-z now supports both Helm and Selectrum for completion. The completion backen
   (use-package org-z-selectrum
     :straight (org-z-selectrum :type git :host github :repo "landakram/org-z"))
 #+end_src
-*** Other changes
+*** Features
 **** Sort links with prescient.el
 Results can be optionally sorted with [[https://github.com/raxod502/prescient.el][prescient.el]] by setting ~org-z-use-prescient~. Note that if you already have prescient enabled through your completion system, you should leave this as nil. 
